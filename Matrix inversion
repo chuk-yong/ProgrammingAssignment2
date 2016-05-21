@@ -1,0 +1,327 @@
+# Matrix inversion is usually a costly computation and there may be some benefit
+# to caching the inverse of a matrix rather than compute it repeatedly. The
+# following two functions are used to cache the inverse of a matrix.
+
+# makeCacheMatrix creates a list containing a function to
+# 1. set the value of the matrix
+# 2. get the value of the matrix
+# 3. set the value of inverse of the matrix
+# 4. get the value of inverse of the matrix
+makeCacheMatrix <- function(x = matrix()) {
+    inv <- NULL
+    set <- function(y) {
+        x <<- y
+        inv <<- NULL
+    }
+    get <- function() x
+    setinverse <- function(inverse) inv <<- inverse
+    getinverse <- function() inv
+    list(set=set, get=get, setinverse=setinverse, getinverse=getinverse)
+}
+
+
+# The following function returns the inverse of the matrix. It first checks if
+# the inverse has already been computed. If so, it gets the result and skips the
+# computation. If not, it computes the inverse, sets the value in the cache via
+# setinverse function.
+
+# This function assumes that the matrix is always invertible.
+cacheSolve <- function(x, ...) {
+    inv <- x$getinverse()
+    if(!is.null(inv)) {
+        message("getting cached data.")
+        return(inv)
+    }
+    data <- x$get()
+    inv <- solve(data)
+    x$setinverse(inv)
+    inv
+}
+
+## Sample run:
+## > x = rbind(c(1, -1/4), c(-1/4, 1))
+## > m = makeCacheMatrix(x)
+## > m$get()
+##       [,1]  [,2]
+## [1,]  1.00 -0.25
+## [2,] -0.25  1.00
+
+## No cache in the first run
+## > cacheSolve(m)
+##           [,1]      [,2]
+## [1,] 1.0666667 0.2666667
+## [2,] 0.2666667 1.0666667
+
+## Retrieving from the cache in the second run
+## > cacheSolve(m)
+## getting cached data.
+##           [,1]      [,2]
+## [1,] 1.0666667 0.2666667
+## [2,] 0.2666667 1.0666667
+## > 
+
+--------------------------------------------
+Disclosure: This is from a programming assignment from a Coursera Course called R programming. I originally had up the full code but took parts of it out since I realize I am not permitted to upload my full code (granted the code I uploaded didn't work).
+
+The assignment is regarding lexical scoping and caching functions that may require a long computation time. Specifically I am using solve() to find the inverse of a matrix and cache it using a free floating variable. I am also trying to cache the input matrix so that I can retrieve it and compare it to any new input matrices. I am returning an error on the latter as described below.
+
+First, I run both makeCacheMatrix and cacheSolve as per the code below.
+
+The first function, makeCacheMatrix creates a special "matrix" object that can cache the input matrix and its inverse
+
+makeCacheMatrix <- function(x = matrix()) {
+m <- NULL # sets the value of m to NULL (provides a default if cacheSolve has not yet been used)
+y <- NULL # sets the value of y to NULL (provides a default if cacheSolve has not yet been used)
+setmatrix <- function(y) { #set the value of the matrix
+    x <<- y ## caches the inputted matrix so that cacheSolve can check whether it has changed (note this is within the setmatrix function)
+    m <<- NULL # # sets the value of m (the matrix inverse if used cacheSolve) to NULL
+}
+# Parts removed
+list(setmatrix = setmatrix, getmatrix = getmatrix, # creates a list to house the four functions
+   setinverse = setinverse,
+   getinverse = getinverse)
+}
+The second function cacheSolve calls functions stored in the special "matrix" returned by makeCacheMatrix (above). If the inverse has already been calculated (and the matrix has not changed), then cacheSolve retrieves the inverse from the cache. If the input is new, it calculates the inverse of the data and sets the inverse in the cache via the setinverse function.
+
+cacheSolve <- function (x=matrix(), ...) {
+# Need to compare matrix to what was there before!
+m <- x$getinverse() # if an inverse has already been calculated this gets it
+if(!is.null(m)){ # check to see if cacheSolve has been run before
+    if(x$setmatrix() == x$getmatrix()) { # check that matrix hasn't changed, and if it hasn't, sends a text message and returns the cached matrix
+        #parts removed
+    return(m)
+    }
+# otherwise 
+y <- x$getmatrix() # run the getmatrix function to get the value of the input matrix
+x$setmatrix(y) # run the setmatrix function on the input matrix to cache it
+m <- solve(y, ...) # compute the value of the inverse of the input matrix
+x$setinverse(m) # run the setinverse function on the inverse to cache the inverse
+m # return the inverse
+}
+
+Then I test it using the following code:
+
+mat <- matrix(data = c(4,2,7,6), nrow = 2, ncol = 2)
+mat2 <- makeCacheMatrix(mat)
+cacheSolve(mat2)
+This gives the inverse as expected.
+
+But when I try to test the cache capability by running the same matrix again.
+
+cacheSolve(mat2)
+It returns "Error in x$setmatrix() : argument "y" is missing, with no default. However, I thought I provided the default NULL in the second line of makeCacheMatrix. I expected it to give the message "getting cached data" and then the inverse.
+
+What am I doing wrong? How can I cache the input matrix using setmatrix and provide the default y?
+
+caching matrix scoping inverse lexical
+shareimprove this question
+edited Aug 20 '14 at 13:09
+asked Aug 19 '14 at 2:26
+
+buehlerdm
+112
+add a comment
+1 Answer
+active oldest votes
+up vote
+0
+down vote
+Try cacheSolve <- function (x, ...) and then only perform if(!is.null(m)) test. Good luck.
+
+shareimprove this answer
+answered Aug 19 '14 at 6:07
+
+user3955101
+1
+-----------------------------------------------
+
+**  http://laplace.physics.ubc.ca/People/arman/FunctionsR.html
+** U of Bristish Columbia
+
+#-----------------------------------
+# AAK  Mon 10 Aug 2014 00:39:54 PDT
+# Functions in R
+#-----------------------------------
+
+# Functions returns the last calculation:
+myadd <- function(x,y) {
+    x+y
+}
+
+# Vector as an input:
+aboveval <-function(x,threshold){
+# Logical subsetting
+    use <- x > threshold
+        x[use]
+}
+
+# Function with default value: (step function, default at 0)
+step <-function(x,threshold = 0){
+# Logical conversion
+    as.integer( x > threshold)
+}
+
+# Function with data frame as input and vector as output
+RCTM <- function(x, removeNA = TRUE) {
+  nc <- ncol(x)
+  #initializing an empty vector:
+  means <- numeric(nc)
+  for(i in 1:nc) {
+    means[i] <- mean(x[,i], na.rm = removeNA)
+  }
+  #returing a vector
+  means
+}
+
+# ... argument indicates variables that will be passed in to another function:
+
+myplot <- function(x, y, type="l", ...){
+  plot(x, y, type=type,...)
+}
+
+# Defining a function in a function, and returning it
+
+make.pow <- function(n) {
+ pow <- function(x) {
+    x^n
+  }
+ pow
+}
+
+# Now you can ``create`` functions using this:
+
+cube <- make.pow(3)
+square <- make.pow(2)
+
+cat('cube(3) = ',cube(3), '\n')
+cat('square(3) = ', square(3), '\n')
+
+# R uses "Lexical scoping" i.e: It looks up the value of
+# the free variables from the enviroument that the function
+# is defined, rather than where it is called (Dynamical scoping)
+# In the following even if z = 4 will be used when f is invoked 
+# even if there is another z defined before the call. 
+f <- function(x) {
+   g <- function(y) {
+      y + z
+   }
+   z <- 4
+   x + g(x)
+}
+
+#-----------------------------------------
+# Scoping assignment: <<- 
+# Assigns value at the parent enviroument
+#-----------------------------------------
+
+a <- 3
+
+e <- function(x) {
+ #Will not affect a = 3 above
+  a <- x
+}
+
+e(4)
+message("a = ",a)
+
+t <- function(x) {
+ # Assigning a value at the parent enviroument
+ # Will affect the a=3
+ a <<- x
+}
+
+# Now calling t function will change the value of the
+# a in the parent envirounment
+t(4)
+message("a now changed to ==> ",a)
+
+# More complicated example:
+
+CreateCache <- function(x=numeric()) {
+   cache <- 0
+   increment <- function() cache <<- cache + 1
+}
+
+AA <- CreateCache()
+BB <- CreateCache()
+
+# Now each call of AA function will increment cache in
+# its internal enviroument by one
+# Note that the cache is in the enviroument of CreateCache (AA)
+# not the global enviroument, and creating another copy of
+# the function in BB will create another cache
+
+
+AA() # cache becomes 1
+BB() # cache becomes 1 (has nothing to do with AA)
+AA() # cache becomes 2 (wont affect BB's cache)
+AA() # cache becomes 3
+resultcachinAA <- AA() # Cache becomes 4 and returns to result
+resultcachinBB <- BB() # Cache becomes 2 and returns to result
+message("Now cache in AA is ", resultcachinAA)
+message("Now cache in BB is ", resultcachinBB)
+
+# Using this, the following allows caching the
+# inverse of the matrix and returning it from
+# cached value rather than computing it again
+
+#----------------------------------------------------
+# Creates a special matrix type from a given matrix x
+# with handle functions get, set, getinv, setinv that
+# encapsulates the access to the underlying matrix and
+# the cached inverse matrix.
+#----------------------------------------------------
+makeCacheMatrix <- function(x = matrix()) {
+    # When called, empty cache containing inverse:
+    invm <- NULL
+    # Sets the matrix to the given value and cleans cache:
+    set <- function(y) {
+        x <<- y
+        invm <<- NULL
+    }
+    # Returns the Matrix:
+    get <- function() x
+    # Sets the cached invm value to the given value
+    setinv <- function(inverse) invm <<- inverse
+    # Returns the cached value:
+    getinv <- function() invm
+    # List of the handle functions:
+    list(set = set, get=get, setinv=setinv, getinv=getinv)
+}
+
+
+#------------------------------------------------------------
+# Returns the inverse (invm) of a special "matrix" type (x)
+# created by makeCacheMatrix either from the cached value 
+# or from a computed value if the cach is empty (invm = NULL) 
+#-------------------------------------------------------------
+
+cacheSolve <- function(x, ...) {
+        # Attempt to get inverse from cached value:
+        invm <- x$getinv()
+        if (!is.null(invm)) {
+            message("getting cached data")
+            return(invm)
+        }
+        # If cached value is empty (NULL) compute the inverse:
+        mtrx <- x$get()
+        message("Computing inverse, this can take a while...")
+        invm <- solve(mtrx,...)
+        # Set the cache to the current value
+        x$setinv(invm)
+        invm
+}
+
+# First creating 1000x1000 matrix
+X <- replicate(1000,rnorm(1000))
+
+# Creating the matrix function with internal cache:
+mymatrix <- makeCacheMatrix()
+
+# Setting the internal value of mymatrix:
+mymatrix$set(X)
+# First call will use solve routine to find the inverse:
+cacheSolve(mymatrix)
+# Second and third call will use the cached value:
+cacheSolve(mymatrix)
+cacheSolve(mymatrix)
